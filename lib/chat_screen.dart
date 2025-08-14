@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:dotted_line/dotted_line.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:loading_indicator/loading_indicator.dart';
 import 'hex_color.dart';
+import 'package:easy_url_launcher/easy_url_launcher.dart';
+
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -69,6 +70,62 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_overlayEntry != null) {
       _overlayEntry!.markNeedsBuild();
     }
+  }
+
+  void _showSourceDocuments(BuildContext context, String documentsJson) {
+    final citations = json.decode(documentsJson) as List;
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: 400,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Source Documents',
+                style: TextStyle(
+                  fontFamily: "Roboto",
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: HexColor('#222222'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...citations.map((citation) {
+                final references = citation['retrievedReferences'] as List;
+                return Column(
+                  children: references.map<Widget>((ref) {
+                    final filename = ref['filename'] ?? 'Unknown Document';
+                    final url = ref['presigned_url'] ?? '';
+                    
+                    return ListTile(
+                      title: Text(
+                        filename,
+                        style: TextStyle(
+                          color: HexColor('#00A3E4'),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      onTap: ()  {
+                        hyperLink(url);
+                      },
+                    );
+                  }).toList(),
+                );
+              }).toList(),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -200,22 +257,21 @@ class _ChatScreenState extends State<ChatScreen> {
                             message['role'] == 'bot'
                                 ? Row(
                               children: [
-                                // GestureDetector(
-                                //   child: Image.asset(
-                                //     "assets/images/copy.png",
-                                //     height: 24,
-                                //     width: 24,
-                                //     color: HexColor('#222222'),
-                                //   ),
-                                //   onTap: () {
-                                //     _copyToClipboard(context,
-                                //         message['message'] ?? '');
-                                //   },
-                                // ),
+                                GestureDetector(
+                                  child: Icon(
+                                    Icons.info_outline,
+                                    size: 24,
+                                    color: HexColor('#222222'),
+                                  ),
+                                  onTap: () {
+                                    _showSourceDocuments(context, message['documents'] ?? '[]');
+                                  },
+                                ),
                                 // const SizedBox(
                                 //   width: 6,
                                 // ),
                                 // GestureDetector(
+                                //
                                 //   onTap: () {
                                 //     final documents = json.decode(
                                 //         message['documents'] ??
@@ -406,21 +462,21 @@ class _ChatScreenState extends State<ChatScreen> {
                                 // //     color: HexColor('#222222'),
                                 // //   ),
                                 // // ),
-                                // // const SizedBox(
-                                // //   width: 12,
-                                // // ),
-                                // // GestureDetector(
-                                // //   onTap: () {
-                                // //     // var speech =
-                                // //     //     message['message'] ?? '';
-                                // //     // _readColorName(speech);
-                                // //   },
-                                // //   child: Image.asset(
-                                // //     "assets/images/speak.png",
-                                // //     height: 24,
-                                // //     width: 24,
-                                // //     color: HexColor('#222222'),
-                                // //   ),
+                                // // // const SizedBox(
+                                // // //   width: 12,
+                                // // // ),
+                                // // // GestureDetector(
+                                // // //   onTap: () {
+                                // // //     // var speech =
+                                // // //     //     message['message'] ?? '';
+                                // // //     // _readColorName(speech);
+                                // // //   },
+                                // // //   child: Image.asset(
+                                // // //     "assets/images/speak.png",
+                                // // //     height: 24,
+                                // // //     width: 24,
+                                // // //     color: HexColor('#222222'),
+                                // // //   ),
                                 // )
                               ],
                             )
@@ -508,7 +564,7 @@ class _ChatScreenState extends State<ChatScreen> {
               icon: Icon(Icons.send, color: HexColor('#222222'))),
           hintStyle: TextStyle(
               fontFamily: "Roboto",
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.w400,
               color: HexColor('#222222').withOpacity(0.4)),
           hintText: 'Enter your message here',
@@ -670,6 +726,13 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       _refreshOverlay();
     }
+  }
+
+  Future<void> hyperLink(url) async {
+    EasyLauncher.url(url: "$url");
+    // if (!await launchUrl(url)) {
+    //   throw Exception('Could not launch $url');
+    // }
   }
 
 }
