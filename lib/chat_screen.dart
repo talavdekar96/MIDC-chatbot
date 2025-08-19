@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:loading_indicator/loading_indicator.dart';
 import 'hex_color.dart';
 import 'package:easy_url_launcher/easy_url_launcher.dart';
@@ -72,6 +73,18 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _scrollToBottom() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
   void _showSourceDocuments(BuildContext context, String documentsJson) {
     final citations = json.decode(documentsJson) as List;
     
@@ -94,28 +107,38 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              ...citations.map((citation) {
-                final references = citation['retrievedReferences'] as List;
-                return Column(
-                  children: references.map<Widget>((ref) {
+              ...() {
+                final Set<String> seenTexts = {};
+                final List<Widget> uniqueItems = [];
+                
+                for (final citation in citations) {
+                  final references = citation['retrievedReferences'] as List;
+                  for (final ref in references) {
                     final filename = ref['filename'] ?? 'Unknown Document';
                     final url = ref['presigned_url'] ?? '';
                     
-                    return ListTile(
-                      title: Text(
-                        filename,
-                        style: TextStyle(
-                          color: HexColor('#00A3E4'),
-                          decoration: TextDecoration.underline,
+                    final displayText = filename == 'Unknown Document' ? 'Website' : filename;
+                    final linkUrl = filename == 'Unknown Document' ? 'https://www.midcindia.org' : url;
+                    
+                    if (!seenTexts.contains(displayText)) {
+                      seenTexts.add(displayText);
+                      uniqueItems.add(ListTile(
+                        title: Text(
+                          displayText,
+                          style: TextStyle(
+                            color: HexColor('#00A3E4'),
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
-                      ),
-                      onTap: ()  {
-                        hyperLink(url);
-                      },
-                    );
-                  }).toList(),
-                );
-              }).toList(),
+                        onTap: () {
+                          hyperLink(linkUrl);
+                        },
+                      ));
+                    }
+                  }
+                }
+                return uniqueItems;
+              }(),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -663,6 +686,7 @@ class _ChatScreenState extends State<ChatScreen> {
       isLoading = true;
       messages.add({'role': 'user', 'message': message});
     });
+    _scrollToBottom();
 
     // Then, clear the text field
     _controller.clear();
@@ -695,6 +719,7 @@ class _ChatScreenState extends State<ChatScreen> {
           });
           isLoading = false;
         });
+        _scrollToBottom();
         _refreshOverlay();
       } else {
         setState(() {
